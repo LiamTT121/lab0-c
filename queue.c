@@ -61,8 +61,8 @@ void q_free(struct list_head *head)
     list_for_each_safe (curr, next, head) {
         element_t *e = list_entry(curr, element_t, list);
         free_element(e);
-        free(curr);
     }
+    free(head);
 }
 
 /* Insert an element at head of queue */
@@ -194,6 +194,7 @@ void q_swap(struct list_head *head)
     ptr1 = head->next;
     ptr2 = head->next->next;
     while (ptr1 != head && ptr2 != head) {
+        ptr1->prev->next = ptr2;
         ptr1->next = ptr2->next;
         ptr2->prev = ptr1->prev;
         ptr1->prev = ptr2;
