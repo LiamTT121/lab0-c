@@ -31,6 +31,13 @@ element_t *new_element(const char *s)
     return e;
 }
 
+/* Free an element */
+void free_element(element_t *e)
+{
+    free(e->value);
+    free(e);
+}
+
 /* Create an empty queue */
 struct list_head *q_new()
 {
@@ -44,7 +51,19 @@ struct list_head *q_new()
 }
 
 /* Free all storage used by queue */
-void q_free(struct list_head *head) {}
+void q_free(struct list_head *head)
+{
+    struct list_head *curr, *next;
+
+    if (!head)
+        return;
+
+    list_for_each_safe (curr, next, head) {
+        element_t *e = list_entry(curr, element_t, list);
+        free_element(e);
+        free(curr);
+    }
+}
 
 /* Insert an element at head of queue */
 bool q_insert_head(struct list_head *head, char *s)
