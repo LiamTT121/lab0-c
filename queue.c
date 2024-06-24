@@ -149,7 +149,7 @@ bool q_delete_mid(struct list_head *head)
         return false;
 
     slow = fast = head->next;
-    while (fast->next && fast->next->next) {
+    while (fast->next != head && fast->next->next != head) {
         slow = slow->next;
         fast = fast->next->next;
     }
