@@ -62,6 +62,7 @@ void q_free(struct list_head *head)
         element_t *e = list_entry(curr, element_t, list);
         free_element(e);
     }
+
     free(head);
 }
 
@@ -166,16 +167,17 @@ bool q_delete_dup(struct list_head *head)
 {
     /* assume the list is sorted */
     element_t *curr, *next;
-    bool is_dup;
+    bool is_dup, next_is_dup;
 
     if (!head || list_empty(head))
         return false;
 
-    is_dup = false;
+    is_dup = next_is_dup = false;
     list_for_each_entry_safe (curr, next, head, list) {
-        bool next_is_dup = strcmp(curr->value, next->value) == 0;
+        if (&next->list != head)
+            next_is_dup = strcmp(curr->value, next->value) == 0;
 
-        if (is_dup) {
+        if (is_dup || next_is_dup) {
             list_del(&curr->list);
             free_element(curr);
         }
@@ -258,13 +260,13 @@ void q_reverseK(struct list_head *head, int k)
         if (++i == k) {
             list_cut_position(&head_for_reverse, dummy_head, tail);
             q_reverse(&head_for_reverse);
-            list_splice_tail(head, &head_for_reverse);
+            list_splice_tail(&head_for_reverse, head);
             i = 0;
         }
     }
 
     if (i > 0)
-        list_splice_tail(head, dummy_head);
+        list_splice_tail(dummy_head, head);
 }
 
 /* Sort elements of queue in ascending/descending order */
@@ -329,25 +331,26 @@ void q_sort(struct list_head *head, bool descend)
 int q_ascend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    struct list_head *curr, *next;
+    struct list_head *curr, *prev;
     int count_node;
 
     if (!head)
         return 0;
 
     count_node = 0;
-    for (curr = head->next; curr != head; curr = next) {
+    for (curr = head->prev; curr != head; curr = prev) {
         const char *val_curr = list_entry(curr, element_t, list)->value;
 
-        next = curr->next;
-        while (next != head) {
-            const char *val_next = list_entry(next, element_t, list)->value;
+        prev = curr->prev;
+        while (prev != head) {
+            const char *val_prev = list_entry(prev, element_t, list)->value;
 
-            if (strcmp(val_curr, val_next) <= 0)
+            if (strcmp(val_curr, val_prev) >= 0)
                 break;
 
-            list_del(next);
-            next = curr->next;
+            list_del(prev);
+            free_element(list_entry(prev, element_t, list));
+            prev = curr->prev;
         }
 
         count_node++;
@@ -360,25 +363,26 @@ int q_ascend(struct list_head *head)
 int q_descend(struct list_head *head)
 {
     // https://leetcode.com/problems/remove-nodes-from-linked-list/
-    struct list_head *curr, *next;
+    struct list_head *curr, *prev;
     int count_node;
 
     if (!head)
         return 0;
 
     count_node = 0;
-    for (curr = head->next; curr != head; curr = next) {
+    for (curr = head->prev; curr != head; curr = prev) {
         const char *val_curr = list_entry(curr, element_t, list)->value;
 
-        next = curr->next;
-        while (next != head) {
-            const char *val_next = list_entry(next, element_t, list)->value;
+        prev = curr->prev;
+        while (prev != head) {
+            const char *val_prev = list_entry(prev, element_t, list)->value;
 
-            if (strcmp(val_curr, val_next) >= 0)
+            if (strcmp(val_curr, val_prev) <= 0)
                 break;
 
-            list_del(next);
-            next = curr->next;
+            list_del(prev);
+            free_element(list_entry(prev, element_t, list));
+            prev = curr->prev;
         }
 
         count_node++;
