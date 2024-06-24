@@ -11,7 +11,7 @@
  */
 
 /* Create a new element  */
-element_t *new_element(const char *s)
+static element_t *new_element(const char *s)
 {
     size_t len;
     element_t *e = malloc(sizeof(element_t));
@@ -32,7 +32,7 @@ element_t *new_element(const char *s)
 }
 
 /* Free an element */
-void free_element(element_t *e)
+static void free_element(element_t *e)
 {
     free(e->value);
     free(e);
