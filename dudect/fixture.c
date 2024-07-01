@@ -42,8 +42,20 @@
 
 #define ENOUGH_MEASURE 10000
 #define TEST_TRIES 10
+#define N_PERCENTILES 100
+#define DUDECT_TESTS (1 + N_PERCENTILES + 1)
 
-static t_context_t *t;
+typedef int (*cmp_func_ptr)(const void *, const void *);
+
+typedef struct {
+    int64_t *before_ticks;
+    int64_t *after_ticks;
+    int64_t *exec_times;
+    uint8_t *input_data;
+    uint8_t *classes;
+    t_context_t *ttest_ctxs[DUDECT_TESTS];
+    int64_t *percentiles;
+} dudect_ctx_t;
 
 /* threshold values for Welch's t-test */
 enum {
@@ -51,9 +63,26 @@ enum {
     t_threshold_moderate = 10, /* Test failed */
 };
 
-static void __attribute__((noreturn)) die(void)
+static int cmp(const int64_t *a, const int64_t *b)
 {
-    exit(111);
+    return *(const int64_t *) a - *(const int64_t *) b;
+}
+
+static int64_t percentile(int64_t *a_sorted, double which, size_t size)
+{
+    size_t array_position = (size_t) ((double) size * which);
+    assert(array_position < size);
+    return a_sorted[array_position];
+}
+
+static void prepare_percentiles(dudect_ctx_t *ctx)
+{
+    qsort(ctx->exec_times, N_MEASURES, sizeof(int64_t), (cmp_func_ptr) cmp);
+    for (size_t i = 0; i < N_PERCENTILES; i++) {
+        ctx->percentiles[i] = percentile(
+            ctx->exec_times,
+            1 - (pow(0.5, 10 * (double) (i + 1) / N_PERCENTILES)), N_MEASURES);
+    }
 }
 
 static void differentiate(int64_t *exec_times,
@@ -64,21 +93,46 @@ static void differentiate(int64_t *exec_times,
         exec_times[i] = after_ticks[i] - before_ticks[i];
 }
 
-static void update_statistics(const int64_t *exec_times, uint8_t *classes)
+static void update_statistics(dudect_ctx_t *ctx)
 {
     for (size_t i = 0; i < N_MEASURES; i++) {
-        int64_t difference = exec_times[i];
+        int64_t difference = ctx->exec_times[i];
         /* CPU cycle counter overflowed or dropped measurement */
         if (difference <= 0)
             continue;
 
         /* do a t-test on the execution time */
-        t_push(t, difference, classes[i]);
+        t_push(ctx->ttest_ctxs[0], difference, ctx->classes[i]);
+
+        // t-test on cropped execution times, for several cropping thresholds.
+        for (size_t crop_index = 0; crop_index < N_PERCENTILES; crop_index++) {
+            if (difference < ctx->percentiles[crop_index]) {
+                t_push(ctx->ttest_ctxs[crop_index + 1], difference,
+                       ctx->classes[i]);
+            }
+        }
     }
 }
 
-static bool report(void)
+static t_context_t *max_test(dudect_ctx_t *ctx)
 {
+    size_t ret = 0;
+    double max = 0;
+    for (size_t i = 0; i < DUDECT_TESTS; i++) {
+        if (ctx->ttest_ctxs[i]->n[0] > ENOUGH_MEASURE) {
+            double x = fabs(t_compute(ctx->ttest_ctxs[i]));
+            if (max < x) {
+                max = x;
+                ret = i;
+            }
+        }
+    }
+    return ctx->ttest_ctxs[ret];
+}
+
+static bool report(dudect_ctx_t *ctx)
+{
+    t_context_t *t = max_test(ctx);
     double max_t = fabs(t_compute(t));
     double number_traces_max_t = t->n[0] + t->n[1];
     double max_tau = max_t / sqrt(number_traces_max_t);
@@ -88,7 +142,7 @@ static bool report(void)
     if (number_traces_max_t < ENOUGH_MEASURE) {
         printf("not enough measurements (%.0f still to go).\n",
                ENOUGH_MEASURE - number_traces_max_t);
-        return false;
+        return true;
     }
 
     /* max_t: the t statistic value
@@ -116,62 +170,91 @@ static bool report(void)
     return true;
 }
 
-static bool doit(int mode)
+static dudect_ctx_t *init_dudect_ctx()
 {
-    int64_t *before_ticks = calloc(N_MEASURES + 1, sizeof(int64_t));
-    int64_t *after_ticks = calloc(N_MEASURES + 1, sizeof(int64_t));
-    int64_t *exec_times = calloc(N_MEASURES, sizeof(int64_t));
-    uint8_t *classes = calloc(N_MEASURES, sizeof(uint8_t));
-    uint8_t *input_data = calloc(N_MEASURES * CHUNK_SIZE, sizeof(uint8_t));
+    dudect_ctx_t *ctx = malloc(sizeof(dudect_ctx_t));
+    assert(ctx);
 
-    if (!before_ticks || !after_ticks || !exec_times || !classes ||
-        !input_data) {
-        die();
+    ctx->before_ticks = calloc(N_MEASURES, sizeof(int64_t));
+    ctx->after_ticks = calloc(N_MEASURES, sizeof(int64_t));
+    ctx->exec_times = calloc(N_MEASURES, sizeof(int64_t));
+    ctx->input_data = calloc(N_MEASURES * CHUNK_SIZE, sizeof(int8_t));
+    ctx->classes = calloc(N_MEASURES, sizeof(int8_t));
+    ctx->percentiles = calloc(N_MEASURES, sizeof(int64_t));
+
+    assert(ctx->before_ticks);
+    assert(ctx->after_ticks);
+    assert(ctx->exec_times);
+    assert(ctx->input_data);
+    assert(ctx->classes);
+    assert(ctx->percentiles);
+    for (size_t i = 0; i < DUDECT_TESTS; i++) {
+        ctx->ttest_ctxs[i] = calloc(1, sizeof(t_context_t));
+        assert(ctx->ttest_ctxs[i]);
+        t_init(ctx->ttest_ctxs[i]);
     }
 
-    prepare_inputs(input_data, classes);
-
-    bool ret = measure(before_ticks, after_ticks, input_data, mode);
-    differentiate(exec_times, before_ticks, after_ticks);
-    update_statistics(exec_times, classes);
-    ret &= report();
-
-    free(before_ticks);
-    free(after_ticks);
-    free(exec_times);
-    free(classes);
-    free(input_data);
-
-    return ret;
+    return ctx;
 }
 
-static void init_once(void)
+static void free_dudect_ctx(dudect_ctx_t *ctx)
 {
-    init_dut();
-    t_init(t);
+    free(ctx->before_ticks);
+    free(ctx->after_ticks);
+    free(ctx->exec_times);
+    free(ctx->input_data);
+    free(ctx->classes);
+    free(ctx->percentiles);
+    for (size_t i = 0; i < DUDECT_TESTS; i++)
+        free(ctx->ttest_ctxs[i]);
+    free(ctx);
+}
+
+static bool doit(dudect_ctx_t *ctx, int mode)
+{
+    prepare_inputs(ctx->input_data, ctx->classes);
+
+    bool ret, first_time;
+
+    ret = measure(ctx->before_ticks, ctx->after_ticks, ctx->input_data, mode);
+    differentiate(ctx->exec_times, ctx->before_ticks, ctx->after_ticks);
+    first_time = ctx->percentiles[N_PERCENTILES - 1] == 0;
+
+    if (first_time) {
+        prepare_percentiles(ctx);
+    } else {
+        update_statistics(ctx);
+        ret &= report(ctx);
+    }
+    return ret;
 }
 
 static bool test_const(char *text, int mode)
 {
     bool result = false;
-    t = malloc(sizeof(t_context_t));
 
     for (int cnt = 0; cnt < TEST_TRIES; ++cnt) {
         printf("Testing %s...(%d/%d)\n\n", text, cnt, TEST_TRIES);
-        init_once();
+        init_dut();
+        dudect_ctx_t *ctx = init_dudect_ctx();
+
         for (int i = 0; i < ENOUGH_MEASURE / (N_MEASURES - DROP_SIZE * 2) + 1;
              ++i)
-            result = doit(mode);
+            result = doit(ctx, mode);
+
+        free_dudect_ctx(ctx);
         printf("\033[A\033[2K\033[A\033[2K");
         if (result)
             break;
     }
-    free(t);
     return result;
 }
 
-#define DUT_FUNC_IMPL(op) \
-    bool is_##op##_const(void) { return test_const(#op, DUT(op)); }
+#define DUT_FUNC_IMPL(op)                \
+    bool is_##op##_const(void)           \
+    {                                    \
+        return test_const(#op, DUT(op)); \
+    }
 
 #define _(x) DUT_FUNC_IMPL(x)
 DUT_FUNCS
