@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
+#include <random.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -1010,6 +1011,67 @@ static bool do_show(int argc, char *argv[])
     return q_show(0);
 }
 
+static struct list_head *get_node_at(struct list_head *node, int index)
+{
+    while (index-- > 0)
+        node = node->next;
+    return node;
+}
+
+static void list_swap_node(struct list_head *a, struct list_head *b)
+{
+    struct list_head *temp;
+
+    temp = a->prev;
+    a->prev = b->prev;
+    b->prev->next = a;
+    b->prev = temp;
+    temp->next = b;
+
+    temp = a->next;
+    a->next = b->next;
+    b->next->prev = a;
+    b->next = temp;
+    temp->prev = b;
+}
+
+static bool do_shuffle(int argc, char *argv[])
+{
+    uint32_t rand_n;
+    struct list_head *curr, *target;
+    size_t list_size;
+
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+
+    if (!current || !current->q) {
+        report(3, "Warning: Calling shuffle on null queue.");
+        return false;
+    }
+
+    list_size = q_size(current->q);
+    curr = current->q->next;
+    while (list_size > 1) {
+        do
+            rand_n = rand();
+        while (rand_n >= RAND_MAX - (RAND_MAX % list_size));
+
+        rand_n %= list_size;
+        if (rand_n != 0) {
+            target = get_node_at(curr, rand_n);
+            list_swap_node(curr, target);
+        }
+
+        curr = curr->next;
+        list_size--;
+    }
+
+    q_show(3);
+    return true;
+}
+
 static bool do_prev(int argc, char *argv[])
 {
     if (argc != 1) {
@@ -1058,6 +1120,8 @@ static bool do_next(int argc, char *argv[])
 
 static void console_init()
 {
+    srand(getpid() * getppid());
+
     ADD_COMMAND(new, "Create new queue", "");
     ADD_COMMAND(free, "Delete queue", "");
     ADD_COMMAND(prev, "Switch to previous queue", "");
@@ -1082,6 +1146,7 @@ static void console_init()
     ADD_COMMAND(sort, "Sort queue in ascending/descening order", "");
     ADD_COMMAND(size, "Compute queue size n times (default: n == 1)", "[n]");
     ADD_COMMAND(show, "Show queue contents", "");
+    ADD_COMMAND(shuffle, "Shuffle nodes in queue", "");
     ADD_COMMAND(dm, "Delete middle node in queue", "");
     ADD_COMMAND(dedup, "Delete all nodes that have duplicate string", "");
     ADD_COMMAND(merge, "Merge all the queues into one sorted queue", "");
