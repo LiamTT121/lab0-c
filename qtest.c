@@ -20,8 +20,10 @@
 #include <time.h>
 #endif
 
+#include "dudect/cpucycles.h"
 #include "dudect/fixture.h"
 #include "list.h"
+#include "list_sort.h"
 #include "random.h"
 
 /* Shannon entropy */
@@ -273,7 +275,8 @@ static bool queue_insert(position_t pos, int argc, char *argv[])
     }
     exception_cancel();
 
-    q_show(3);
+    if (strcmp(argv[0], "cmp_sorting"))
+        q_show(3);
     return ok;
 }
 
@@ -1035,6 +1038,104 @@ static void list_swap_node(struct list_head *a, struct list_head *b)
     temp->prev = b;
 }
 
+static struct list_head *q_duplicate(struct list_head *head)
+{
+    struct list_head *head_copy, **prev_copy;
+    element_t *curr, *curr_copy;
+
+    head_copy = test_malloc(sizeof(struct list_head));
+    prev_copy = &head_copy;
+
+    list_for_each_entry (curr, head, list) {
+        curr_copy = test_malloc(sizeof(element_t));
+        curr_copy->value =
+            test_malloc((strlen(curr->value) + 1) * sizeof(char));
+
+        strncpy(curr_copy->value, curr->value, strlen(curr->value) + 1);
+        curr_copy->list.prev = *prev_copy;
+        (*prev_copy)->next = &curr_copy->list;
+        prev_copy = &((*prev_copy)->next);
+    }
+    head_copy->prev = *prev_copy;
+    (*prev_copy)->next = head_copy;
+    return head_copy;
+}
+
+/* compare function for list_sort() */
+static int cmp_func(void *priv,
+                    const struct list_head *a,
+                    const struct list_head *b)
+{
+    return strcmp(list_entry(a, element_t, list)->value,
+                  list_entry(b, element_t, list)->value);
+}
+
+#define DEFAULT_QUEUE_SIZE "10000"
+static bool do_cmp_sorting(int argc, char *argv[])
+{
+    struct list_head *copy_head, *warmup_head;
+    char **inner_argv;
+    int64_t before, after, exc_time;
+    int queue_size;
+
+    inner_argv = malloc(3 * sizeof(char *));
+
+    inner_argv[0] = "cmp_sorting";
+    inner_argv[1] = "RAND";
+    if (argc > 1) {
+        if (!get_int(argv[1], &queue_size)) {
+            report(1, "Invalid number of queue size '%s'", argv[1]);
+            return false;
+        }
+        inner_argv[2] = argv[1];
+    } else {
+        inner_argv[2] = DEFAULT_QUEUE_SIZE;
+    }
+
+    if (current) {
+        report(1, "Queue already exists. Fail to compare.", NULL);
+        return false;
+    }
+
+    do_new(1, NULL);
+    do_ih(3, inner_argv);
+    printf("\033[2K\033[A");
+    printf("Start comparing...\n");
+
+    copy_head = q_duplicate(current->q);
+    warmup_head = q_duplicate(current->q);
+    q_sort(warmup_head, false);
+
+    before = cpucycles();
+    q_sort(copy_head, false);
+    after = cpucycles();
+    exc_time = after - before;
+    printf("my_sort  : %ld\n", exc_time);
+
+    q_free(copy_head);
+    q_free(warmup_head);
+
+
+    copy_head = q_duplicate(current->q);
+    warmup_head = q_duplicate(current->q);
+    list_sort(NULL, warmup_head, cmp_func);
+
+    before = cpucycles();
+    list_sort(NULL, copy_head, cmp_func);
+    after = cpucycles();
+    exc_time = after - before;
+    printf("list_sort: %ld\n", exc_time);
+
+    q_free(warmup_head);
+    q_free(copy_head);
+
+    do_free(1, NULL);
+    free(inner_argv);
+    printf("\033[2K\033[A");
+    printf("Finished.\n");
+    return true;
+}
+
 static bool do_shuffle(int argc, char *argv[])
 {
     uint32_t rand_n;
@@ -1161,6 +1262,10 @@ static void console_init()
                 "");
     ADD_COMMAND(reverseK, "Reverse the nodes of the queue 'K' at a time",
                 "[K]");
+    ADD_COMMAND(cmp_sorting,
+                "compare efficiency of different sorting methods with queue "
+                "of size n.(default: n == 5000000)",
+                "[n]");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",

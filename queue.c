@@ -53,15 +53,13 @@ struct list_head *q_new()
 /* Free all storage used by queue */
 void q_free(struct list_head *head)
 {
-    struct list_head *curr, *next;
+    element_t *e, *next;
 
     if (!head)
         return;
 
-    list_for_each_safe (curr, next, head) {
-        element_t *e = list_entry(curr, element_t, list);
+    list_for_each_entry_safe (e, next, head, list)
         free_element(e);
-    }
 
     free(head);
 }
@@ -426,3 +424,4 @@ int q_merge(struct list_head *head, bool descend)
     curr->size = count;
     return count;
 }
+

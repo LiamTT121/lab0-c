@@ -1,4 +1,4 @@
-#include "list.h"
+#include "list_sort.h"
 /*
  * Returns a list organized in an intermediate format suited
  * to chaining of merge() calls: null-terminated, no reserved or
@@ -47,7 +47,6 @@ __attribute__((nonnull(2, 3, 4, 5))) static void merge_final(
     struct list_head *b)
 {
     struct list_head *tail = head;
-    u8 count = 0;
 
     for (;;) {
         /* if equal, take 'a' -- important for sort stability */
@@ -73,15 +72,6 @@ __attribute__((nonnull(2, 3, 4, 5))) static void merge_final(
     /* Finish linking remainder of list b on to tail */
     tail->next = b;
     do {
-        /*
-         * If the merge is highly unbalanced (e.g. the input is
-         * already sorted), this loop may run many iterations.
-         * Continue callbacks to the client even though no
-         * element comparison is needed, so the client's cmp()
-         * routine can invoke cond_resched() periodically.
-         */
-        if (unlikely(!++count))
-            cmp(priv, b, b);
         b->prev = tail;
         tail = b;
         b = b->next;
@@ -92,6 +82,12 @@ __attribute__((nonnull(2, 3, 4, 5))) static void merge_final(
     head->prev = tail;
 }
 
+/**
+ * list_sort - sort a list
+ * @priv: private data, opaque to list_sort(), passed to @cmp
+ * @head: the list to sort
+ * @cmp: the elements comparison function
+ */
 __attribute__((nonnull(2, 3))) void list_sort(void *priv,
                                               struct list_head *head,
                                               list_cmp_func_t cmp)
@@ -131,7 +127,7 @@ __attribute__((nonnull(2, 3))) void list_sort(void *priv,
         for (bits = count; bits & 1; bits >>= 1)
             tail = &(*tail)->prev;
         /* Do the indicated merge */
-        if (likely(bits)) {
+        if (bits) {
             struct list_head *a = *tail, *b = a->prev;
 
             a = merge(priv, cmp, b, a);
