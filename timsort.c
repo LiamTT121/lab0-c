@@ -20,6 +20,19 @@ struct runs_queue {
     size_t count;
 };
 
+static struct element *new_element(int value)
+{
+    struct element *e = malloc(sizeof(*e));
+    if (!e) {
+        printf("Fail to construct new element\n");
+        return NULL;
+    }
+
+    INIT_LIST_HEAD(&e.list);
+    e->value = value;
+    return e;
+}
+
 static struct runs_queue *new_runs_queue()
 {
     struct runs_queue *rq = calloc(1, sizeof(*rq));
@@ -37,8 +50,8 @@ static struct runs_queue *new_runs_queue()
     return rq;
 
 error:
-    printf("Fail to construct new queue of runs");
-    exit(1);
+    printf("Fail to construct new queue of runs\n");
+    return NULL;
 }
 
 static int cmp_func(void *priv,
