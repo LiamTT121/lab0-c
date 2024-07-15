@@ -50,26 +50,45 @@ static free_runs_queue(struct runs_queue *rq)
     free(rq);
 }
 
+/*
+ * @head1: one of header of list on runs_queue
+ * @head2: another header of list on runs_queue
+ *
+ * two runs will be merged and link to head1,
+ * then free the space of run #2.
+ */
 static void merge(struct list_head *head1,
                   struct list_head *head2,
                   list_cmp_func_t cmp)
 {
-    struct list_head temp;
+    struct run *run1, *run2;
+    struct list_head temp, *run_head1, *run_head2;
 
     INIT_LIST_HEAD(&temp);
-    while (!list_empty(head1) && list_empty(head2)) {
-        struct list_head *cut;
-        if (cmp(head1->next, head2->next) <= 0)
-            cut = head1->next;
-        else
-            cut = head2->next;
 
+    run1 = list_entry(head1, struct run, head);
+    run2 = list_entry(head2, struct run, head);
+    run_head1 = run1->head;
+    run_head2 = run2->head;
+
+    while (!list_empty(run_head1) && list_empty(run_head2)) {
+        struct list_head *cut;
+        if (cmp(run_head1->next, run_head2->next) <= 0)
+            cut = run_head1->next;
+        else
+            cut = run_head2->next;
+
+        list_del(cur);
         list_add_tail(cut, &temp);
     }
 
     list_splice_tail(head1, &temp);
     list_splice_tail(head2, &temp);
     list_splice_tail(&temp, head1);
+    run1->size += run2->size;
+
+    list_del(head2);  // remove run #2 from all_run
+    free_run(run2);
 }
 
 static void insertion(struct list_head *head,
@@ -122,22 +141,25 @@ static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
         if (++all_run->count < 4)
             continue;
 
-        struct run *a, *b, *c, *d;
-        a = list_entry(all_run->head->prev, struct run, head);
-        b = list_entry(all_run->head->prev->prev, struct run, head);
-        c = list_entry(all_run->head->prev->prev->prev, struct run, head);
-        d = list_entry(all_run->head->prev->prev->prev->prev, struct run, head);
+        struct list_head, *a, *b, *c, *d;
+        struct run *ra, *rb, *rc, *rd;
 
-        if (a->size <= b->size + c->size || b->size <= c->size + d->size) {
-            if (b->size < d->size) {
-                merge(b->head, c->head);
-                list_del(c->head);
-                free_run(c);
-            } else {
-                merge(c->head, d->head);
-                list_del(d->head);
-                free_run(d);
-            }
+        a = all_run->head->prev;
+        b = all_run->head->prev->prev;
+        c = all_run->head->prev->prev->prev;
+        d = all_run->head->prev->prev->prev->prev;
+
+        ra = list_entry(a, struct run, head);
+        rb = list_entry(b, struct run, head);
+        rc = list_entry(c, struct run, head);
+        rd = list_entry(d, struct run, head);
+
+        if (ra->size <= rb->size + rc->size ||
+            rb->size <= rc->size + rd->size) {
+            if (rb->size < rd->size)
+                merge(b, c);
+            else
+                merge(c, d);
         }
     }
 
