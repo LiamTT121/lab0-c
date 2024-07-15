@@ -33,6 +33,11 @@ static struct element *new_element(int value)
     return e;
 }
 
+static void free_element(struct element *e)
+{
+    free(e);
+}
+
 static struct runs_queue *new_runs_queue()
 {
     struct runs_queue *rq = calloc(1, sizeof(*rq));
@@ -52,6 +57,12 @@ static struct runs_queue *new_runs_queue()
 error:
     printf("Fail to construct new queue of runs\n");
     return NULL;
+}
+
+static free_runs_queue(struct runs_queue *rq)
+{
+    free(rq->head);
+    free(rq);
 }
 
 static int cmp_func(void *priv,
