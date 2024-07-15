@@ -91,6 +91,25 @@ static void merge(struct list_head *head1,
     free_run(run2);
 }
 
+/*
+ * suppose there are n runs, index are from 0, 1, ..., n-1.
+ * keep merging (0 and n-1), (1 and n-2), and so on till only 1 run remaind.
+ */
+static void final_merge(struct runs_queue *all_run, list_cmp_func_t cmp)
+{
+    struct list_head *head, *left, *right;
+
+    head = all_run->head;
+    while (all_run->count > 1) {
+        for (left = head->next; left->next != head; left = left->next) {
+            right = head->prev;
+            merge(left, right, cmp);
+        }
+
+        all_run->count = (all_run->count + 1) >> 1;
+    }
+}
+
 static void insertion(struct list_head *head,
                       struct list_head *new_node,
                       list_cmp_func_t cmp)
