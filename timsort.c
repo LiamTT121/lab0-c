@@ -78,6 +78,19 @@ static void merge()
     // todo;
 }
 
+static void insertion(struct list_head *head,
+                      struct list_head *new_node,
+                      list_cmp_func_t cmp)
+{
+    struct list_head *curr;
+
+    list_for_each (curr, head) {
+        if (cmp(curr, new_node) > 0)
+            break;
+    }
+    list_add_tail(new_node, curr);
+}
+
 static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
 {
     struct runs_queue *all_run = new_runs_queue();
