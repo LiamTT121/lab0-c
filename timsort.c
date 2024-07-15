@@ -11,12 +11,12 @@ struct element {
 };
 
 struct run {
-    struct list_head *head;
+    struct list_head head;
     size_t size;
 };
 
 struct runs_queue {
-    struct list_head *head;
+    struct list_head head;
     size_t count;
 };
 
@@ -42,26 +42,17 @@ static struct runs_queue *new_runs_queue()
 {
     struct runs_queue *rq = calloc(1, sizeof(*rq));
 
-    if (!rq)
-        goto error;
-
-    rq->head = malloc(sizeof(struct list_head));
-    if (!rq->head) {
-        free(rq);
-        goto error;
+    if (!rq) {
+        printf("Fail to construct new queue of runs\n");
+        return NULL;
     }
-    INIT_LIST_HEAD(rq->head);
 
+    INIT_LIST_HEAD(&rq.head);
     return rq;
-
-error:
-    printf("Fail to construct new queue of runs\n");
-    return NULL;
 }
 
 static free_runs_queue(struct runs_queue *rq)
 {
-    free(rq->head);
     free(rq);
 }
 
@@ -101,7 +92,6 @@ static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
     struct run delete_me;
     struct element delete_me_too;
     delete_me_too.value = 0;
-    delete_me.head = NULL;
     delete_me.size = delete_me_too.value;
     printf("timsort is wrong if you see this message. %zu\n", delete_me.size);
     /* clear until here */
