@@ -99,6 +99,33 @@ static void insertion(struct list_head *head,
     list_add_tail(new_node, curr);
 }
 
+static struct run *next_run(struct list_head *head, list_cmp_func_t cmp)
+{
+    struct run *r;
+    struct list_head *curr, *next;
+
+    r = new_run();
+
+    curr = head->next;
+    next = head->next->next;
+    while (next != head && cmp(curr, next) <= 0) {
+        curr = next;
+        next = next->next;
+        r->size++;
+    }
+    list_cut_position(r->head, head, curr);
+
+    list_for_each_safe (curr, next, head) {
+        if (r->size >= MIN_RUN_SIZE)
+            break;
+
+        insertion(r->head, curr, cmp);
+        r->size++;
+    }
+
+    return r;
+}
+
 static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
 {
     struct runs_queue *all_run = new_runs_queue();
