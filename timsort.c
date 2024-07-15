@@ -50,9 +50,26 @@ static free_runs_queue(struct runs_queue *rq)
     free(rq);
 }
 
-static void merge()
+static void merge(struct list_head *head1,
+                  struct list_head *head2,
+                  list_cmp_func_t cmp)
 {
-    // todo;
+    struct list_head temp;
+
+    INIT_LIST_HEAD(&temp);
+    while (!list_empty(head1) && list_empty(head2)) {
+        struct list_head *cut;
+        if (cmp(head1->next, head2->next) <= 0)
+            cut = head1->next;
+        else
+            cut = head2->next;
+
+        list_add_tail(cut, &temp);
+    }
+
+    list_splice_tail(head1, &temp);
+    list_splice_tail(head2, &temp);
+    list_splice_tail(&temp, head1);
 }
 
 static void insertion(struct list_head *head,
