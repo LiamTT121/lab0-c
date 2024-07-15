@@ -23,6 +23,7 @@ CPPCHECK_suppresses="--inline-suppr harness.c \
 --suppress=preprocessorErrorDirective:random.h \
 --suppress=constParameterPointer:queue.c \
 --suppress=unassignedVariable:list_sort.c \
+--suppress=constVariablePointer:timsort.c \
 "
 CPPCHECK_OPTS="-I. --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
 

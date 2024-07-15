@@ -116,13 +116,30 @@ static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
 {
     struct runs_queue *all_run = new_runs_queue();
 
-    /* just used to pass the static checking (unused variable)
-     * need to clear this after implementation */
-    all_run->count = 0;
-    struct run delete_me;
-    delete_me.size = 0;
-    printf("timsort is wrong if you see this message. %zu\n", delete_me.size);
-    /* clear until here */
+    while (!list_empty(head)) {
+        struct run *run = next_run(head);
+        list_add_tail(run->head, all_run->head);
+        if (++all_run->count < 4)
+            continue;
 
-    // todo;
+        struct run *a, *b, *c, *d;
+        a = list_entry(all_run->head->prev, struct run, head);
+        b = list_entry(all_run->head->prev->prev, struct run, head);
+        c = list_entry(all_run->head->prev->prev->prev, struct run, head);
+        d = list_entry(all_run->head->prev->prev->prev->prev, struct run, head);
+
+        if (a->size <= b->size + c->size || b->size <= c->size + d->size) {
+            if (b->size < d->size) {
+                merge(b->head, c->head);
+                list_del(c->head);
+                free_run(c);
+            } else {
+                merge(c->head, d->head);
+                list_del(d->head);
+                free_run(d);
+            }
+        }
+    }
+
+    final_merge(all_run);
 }
