@@ -57,7 +57,8 @@ static free_runs_queue(struct runs_queue *rq)
  * two runs will be merged and link to head1,
  * then free the space of run #2.
  */
-static void merge(struct list_head *head1,
+static void merge(void *priv,
+                  struct list_head *head1,
                   struct list_head *head2,
                   list_cmp_func_t cmp)
 {
@@ -73,7 +74,7 @@ static void merge(struct list_head *head1,
 
     while (!list_empty(run_head1) && list_empty(run_head2)) {
         struct list_head *cut;
-        if (cmp(run_head1->next, run_head2->next) <= 0)
+        if (cmp(priv, run_head1->next, run_head2->next) <= 0)
             cut = run_head1->next;
         else
             cut = run_head2->next;
@@ -95,7 +96,9 @@ static void merge(struct list_head *head1,
  * suppose there are n runs, index are from 0, 1, ..., n-1.
  * keep merging (0 and n-1), (1 and n-2), and so on till only 1 run remaind.
  */
-static void final_merge(struct runs_queue *all_run, list_cmp_func_t cmp)
+static void final_merge(void *priv,
+                        struct runs_queue *all_run,
+                        list_cmp_func_t cmp)
 {
     struct list_head *head, *left, *right;
 
@@ -103,27 +106,30 @@ static void final_merge(struct runs_queue *all_run, list_cmp_func_t cmp)
     while (all_run->count > 1) {
         for (left = head->next; left->next != head; left = left->next) {
             right = head->prev;
-            merge(left, right, cmp);
+            merge(priv, left, right, cmp);
         }
 
         all_run->count = (all_run->count + 1) >> 1;
     }
 }
 
-static void insertion(struct list_head *head,
+static void insertion(void *priv,
+                      struct list_head *head,
                       struct list_head *new_node,
                       list_cmp_func_t cmp)
 {
     struct list_head *curr;
 
     list_for_each (curr, head) {
-        if (cmp(curr, new_node) > 0)
+        if (cmp(priv, curr, new_node) > 0)
             break;
     }
     list_add_tail(new_node, curr);
 }
 
-static struct run *next_run(struct list_head *head, list_cmp_func_t cmp)
+static struct run *next_run(void *priv,
+                            struct list_head *head,
+                            list_cmp_func_t cmp)
 {
     struct run *r;
     struct list_head *curr, *next;
@@ -132,7 +138,7 @@ static struct run *next_run(struct list_head *head, list_cmp_func_t cmp)
 
     curr = head->next;
     next = head->next->next;
-    while (next != head && cmp(curr, next) <= 0) {
+    while (next != head && cmp(priv, curr, next) <= 0) {
         curr = next;
         next = next->next;
         r->size++;
@@ -176,11 +182,12 @@ static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
         if (ra->size <= rb->size + rc->size ||
             rb->size <= rc->size + rd->size) {
             if (rb->size < rd->size)
-                merge(b, c);
+                merge(priv, b, c, cmp);
             else
-                merge(c, d);
+                merge(priv, c, d, cmp);
         }
     }
 
-    final_merge(all_run);
+    final_merge(priv, all_run, cmp);
+    free_runs_queue(all_run);
 }
