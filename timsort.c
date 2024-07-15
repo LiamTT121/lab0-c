@@ -28,7 +28,7 @@ static struct element *new_element(int value)
         return NULL;
     }
 
-    INIT_LIST_HEAD(&e.list);
+    INIT_LIST_HEAD(&e->list);
     e->value = value;
     return e;
 }
@@ -36,6 +36,23 @@ static struct element *new_element(int value)
 static void free_element(struct element *e)
 {
     free(e);
+}
+
+static struct run *new_run()
+{
+    struct run *r = calloc(1, sizeof(struct run));
+    if (!r) {
+        printf("Fail to construct new element\n");
+        return NULL;
+    }
+
+    INIT_LIST_HEAD(&r->head);
+    return r;
+}
+
+static free_run(struct run *r)
+{
+    free(r);
 }
 
 static struct runs_queue *new_runs_queue()
@@ -47,7 +64,7 @@ static struct runs_queue *new_runs_queue()
         return NULL;
     }
 
-    INIT_LIST_HEAD(&rq.head);
+    INIT_LIST_HEAD(&rq->head);
     return rq;
 }
 
