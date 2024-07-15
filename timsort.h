@@ -8,7 +8,7 @@ typedef int
                                                       const struct list_head *,
                                                       const struct list_head *);
 
-__attribute__((nonnull(2, 3))) timsort(void *priv,
-                                       struct list_head *head,
-                                       list_cmp_func_t cmp);
+void __attribute__((nonnull(2, 3))) timsort(void *priv,
+                                            struct list_head *head,
+                                            list_cmp_func_t cmp);
 #endif

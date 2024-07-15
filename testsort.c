@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 #include "list.h"
-// #include "timsort.h"
+#include "timsort.h"
 
 #define ELE_SIZE 15
 
@@ -62,6 +62,8 @@ int main(void)
     srand(getpid() ^ getppid());
 
     head = create_sample_data();
+    print_list(head);
+    timsort(NULL, head, cmp);
     print_list(head);
     free_sample_data(head);
     return 0;
