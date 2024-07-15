@@ -5,11 +5,6 @@
 
 #define MIN_RUN_SIZE 10
 
-struct element {
-    struct list_head list;
-    int value;
-};
-
 struct run {
     struct list_head head;
     size_t size;
@@ -20,29 +15,11 @@ struct runs_queue {
     size_t count;
 };
 
-static struct element *new_element(int value)
-{
-    struct element *e = malloc(sizeof(*e));
-    if (!e) {
-        printf("Fail to construct new element\n");
-        return NULL;
-    }
-
-    INIT_LIST_HEAD(&e->list);
-    e->value = value;
-    return e;
-}
-
-static void free_element(struct element *e)
-{
-    free(e);
-}
-
 static struct run *new_run()
 {
     struct run *r = calloc(1, sizeof(struct run));
     if (!r) {
-        printf("Fail to construct new element\n");
+        printf("Fail to construct new run\n");
         return NULL;
     }
 
@@ -71,14 +48,6 @@ static struct runs_queue *new_runs_queue()
 static free_runs_queue(struct runs_queue *rq)
 {
     free(rq);
-}
-
-static int cmp_func(void *priv,
-                    const struct list_head *a,
-                    const struct list_head *b)
-{
-    // todo;
-    return 0;
 }
 
 static void merge()
@@ -134,9 +103,7 @@ static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
      * need to clear this after implementation */
     all_run->count = 0;
     struct run delete_me;
-    struct element delete_me_too;
-    delete_me_too.value = 0;
-    delete_me.size = delete_me_too.value;
+    delete_me.size = 0;
     printf("timsort is wrong if you see this message. %zu\n", delete_me.size);
     /* clear until here */
 
