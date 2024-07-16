@@ -4,7 +4,7 @@
 #include "list.h"
 #include "timsort.h"
 
-#define MIN_RUN_SIZE 32
+#define MIN_RUN_SIZE 40
 
 struct run {
     struct list_head head;  // head of run
@@ -113,7 +113,8 @@ static void final_merge(void *priv,
 
     head = &all_run->head;
     while (all_run->count > 1) {
-        for (left = head->next; left->next != head; left = left->next) {
+        int merge_count = all_run->count >> 1;
+        for (left = head->next; merge_count-- > 0; left = left->next) {
             right = head->prev;
             merge(priv, left, right, cmp);
         }
