@@ -4,7 +4,7 @@
 #include "list.h"
 #include "timsort.h"
 
-#define MIN_RUN_SIZE 40
+#define MIN_RUN_SIZE 5
 
 struct run {
     struct list_head head;  // head of run
@@ -92,7 +92,7 @@ static void merge(void *priv,
         list_add_tail(cut, &temp);
     }
 
-    list_splice_tail(run1_head, &temp);
+    list_splice_tail_init(run1_head, &temp);
     list_splice_tail(run2_head, &temp);
     list_splice_tail(&temp, run1_head);
     run1->size += run2->size;
@@ -127,14 +127,14 @@ static void insertion(void *priv,
                       struct list_head *new_node,
                       list_cmp_func_t cmp)
 {
-    struct list_head *curr;
+    struct list_head *right;
 
-    list_for_each (curr, head) {
-        if (cmp(priv, curr, new_node) > 0)
+    list_for_each (right, head) {
+        if (cmp(priv, right, new_node) > 0)
             break;
     }
     list_del(new_node);
-    list_add_tail(new_node, curr);
+    list_add_tail(new_node, right);
 }
 
 static struct run *next_run(void *priv,
@@ -145,6 +145,7 @@ static struct run *next_run(void *priv,
     struct list_head *curr, *next;
 
     run = new_run(head);
+    run->size = 1;
 
     curr = head->next;
     next = head->next->next;
