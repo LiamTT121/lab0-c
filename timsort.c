@@ -1,12 +1,14 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "list.h"
 #include "timsort.h"
 
-#define MIN_RUN_SIZE 10
+#define MIN_RUN_SIZE 32
 
 struct run {
-    struct list_head head;
+    struct list_head head;  // head of run
+    struct list_head list;  // used to connect runs_queue
     size_t size;
 };
 
@@ -15,21 +17,22 @@ struct runs_queue {
     size_t count;
 };
 
-static struct run *new_run()
+static struct run *new_run(struct list_head *head)
 {
-    struct run *r = calloc(1, sizeof(struct run));
-    if (!r) {
+    struct run *run = calloc(1, sizeof(struct run));
+    if (!run) {
         printf("Fail to construct new run\n");
         return NULL;
     }
 
-    INIT_LIST_HEAD(&r->head);
-    return r;
+    INIT_LIST_HEAD(&run->head);
+    INIT_LIST_HEAD(&run->list);
+    return run;
 }
 
-static free_run(struct run *r)
+static void free_run(struct run *run)
 {
-    free(r);
+    free(run);
 }
 
 static struct runs_queue *new_runs_queue()
@@ -45,8 +48,14 @@ static struct runs_queue *new_runs_queue()
     return rq;
 }
 
-static free_runs_queue(struct runs_queue *rq)
+static void free_runs_queue(struct runs_queue *rq)
 {
+    if (!rq)
+        return;
+
+    struct run *run, *next;
+    list_for_each_entry_safe (run, next, &rq->head, list)
+        free_run(run);
     free(rq);
 }
 
@@ -63,29 +72,29 @@ static void merge(void *priv,
                   list_cmp_func_t cmp)
 {
     struct run *run1, *run2;
-    struct list_head temp, *run_head1, *run_head2;
+    struct list_head temp, *run1_head, *run2_head;
 
     INIT_LIST_HEAD(&temp);
 
-    run1 = list_entry(head1, struct run, head);
-    run2 = list_entry(head2, struct run, head);
-    run_head1 = run1->head;
-    run_head2 = run2->head;
+    run1 = list_entry(head1, struct run, list);
+    run2 = list_entry(head2, struct run, list);
+    run1_head = &run1->head;
+    run2_head = &run2->head;
 
-    while (!list_empty(run_head1) && list_empty(run_head2)) {
+    while (!list_empty(run1_head) && !list_empty(run2_head)) {
         struct list_head *cut;
-        if (cmp(priv, run_head1->next, run_head2->next) <= 0)
-            cut = run_head1->next;
+        if (cmp(priv, run1_head->next, run2_head->next) <= 0)
+            cut = run1_head->next;
         else
-            cut = run_head2->next;
+            cut = run2_head->next;
 
-        list_del(cur);
+        list_del(cut);
         list_add_tail(cut, &temp);
     }
 
-    list_splice_tail(head1, &temp);
-    list_splice_tail(head2, &temp);
-    list_splice_tail(&temp, head1);
+    list_splice_tail(run1_head, &temp);
+    list_splice_tail(run2_head, &temp);
+    list_splice_tail(&temp, run1_head);
     run1->size += run2->size;
 
     list_del(head2);  // remove run #2 from all_run
@@ -102,13 +111,12 @@ static void final_merge(void *priv,
 {
     struct list_head *head, *left, *right;
 
-    head = all_run->head;
+    head = &all_run->head;
     while (all_run->count > 1) {
         for (left = head->next; left->next != head; left = left->next) {
             right = head->prev;
             merge(priv, left, right, cmp);
         }
-
         all_run->count = (all_run->count + 1) >> 1;
     }
 }
@@ -124,6 +132,7 @@ static void insertion(void *priv,
         if (cmp(priv, curr, new_node) > 0)
             break;
     }
+    list_del(new_node);
     list_add_tail(new_node, curr);
 }
 
@@ -131,53 +140,54 @@ static struct run *next_run(void *priv,
                             struct list_head *head,
                             list_cmp_func_t cmp)
 {
-    struct run *r;
+    struct run *run;
     struct list_head *curr, *next;
 
-    r = new_run();
+    run = new_run(head);
 
     curr = head->next;
     next = head->next->next;
     while (next != head && cmp(priv, curr, next) <= 0) {
         curr = next;
         next = next->next;
-        r->size++;
+        run->size++;
     }
-    list_cut_position(r->head, head, curr);
+    list_cut_position(&run->head, head, curr);
 
     list_for_each_safe (curr, next, head) {
-        if (r->size >= MIN_RUN_SIZE)
+        if (run->size >= MIN_RUN_SIZE)
             break;
 
-        insertion(r->head, curr, cmp);
-        r->size++;
+        insertion(priv, &run->head, curr, cmp);
+        run->size++;
     }
 
-    return r;
+    return run;
 }
 
-static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
+void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
 {
     struct runs_queue *all_run = new_runs_queue();
+    struct run *run;
 
     while (!list_empty(head)) {
-        struct run *run = next_run(head);
-        list_add_tail(run->head, all_run->head);
+        run = next_run(priv, head, cmp);
+        list_add_tail(&run->list, &all_run->head);
         if (++all_run->count < 4)
             continue;
 
-        struct list_head, *a, *b, *c, *d;
+        struct list_head *a, *b, *c, *d;
         struct run *ra, *rb, *rc, *rd;
 
-        a = all_run->head->prev;
-        b = all_run->head->prev->prev;
-        c = all_run->head->prev->prev->prev;
-        d = all_run->head->prev->prev->prev->prev;
+        a = all_run->head.prev;
+        b = all_run->head.prev->prev;
+        c = all_run->head.prev->prev->prev;
+        d = all_run->head.prev->prev->prev->prev;
 
-        ra = list_entry(a, struct run, head);
-        rb = list_entry(b, struct run, head);
-        rc = list_entry(c, struct run, head);
-        rd = list_entry(d, struct run, head);
+        ra = list_entry(a, struct run, list);
+        rb = list_entry(b, struct run, list);
+        rc = list_entry(c, struct run, list);
+        rd = list_entry(d, struct run, list);
 
         if (ra->size <= rb->size + rc->size ||
             rb->size <= rc->size + rd->size) {
@@ -185,9 +195,12 @@ static void timsort(void *priv, struct list_head *head, list_cmp_func_t cmp)
                 merge(priv, b, c, cmp);
             else
                 merge(priv, c, d, cmp);
+
+            all_run->count--;
         }
     }
-
     final_merge(priv, all_run, cmp);
+    run = list_first_entry(&all_run->head, struct run, list);
+    list_splice(&run->head, head);
     free_runs_queue(all_run);
 }
