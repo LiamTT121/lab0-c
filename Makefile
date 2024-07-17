@@ -74,6 +74,11 @@ valgrind: valgrind_existence
 	@echo "Test with specific case by running command:" 
 	@echo "scripts/driver.py -p $(patched_file) --valgrind -t <tid>"
 
+.PHONY: cmp
+cmp: timsort.c testsort.c list_sort.c
+	@$(CC) $(CFLAGS) -o lll $^
+	@./lll
+
 clean:
 	rm -f $(OBJS) $(deps) *~ qtest /tmp/qtest.*
 	rm -rf .$(DUT_DIR)
