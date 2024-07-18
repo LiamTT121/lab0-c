@@ -134,17 +134,13 @@ int main()
             record_move(move);
 #elif defined(USE_MCTS)
             int move = mcts(table, ai);
-            if (move != -1) {
-                table[move] = ai;
-                record_move(move);
-            }
 #else
             int move = negamax_predict(table, ai).move;
+#endif
             if (move != -1) {
                 table[move] = ai;
                 record_move(move);
             }
-#endif
         } else {
             draw_board(table);
             int move;
