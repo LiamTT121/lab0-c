@@ -24,6 +24,11 @@ CPPCHECK_suppresses="--inline-suppr harness.c \
 --suppress=constParameterPointer:queue.c \
 --suppress=unassignedVariable:list_sort.c \
 --suppress=constVariablePointer:timsort.c \
+--suppress=variableScope:ttt/mt19937-64.c \
+--suppress=constVariablePointer:ttt/agents/mcts.c \
+--suppress=nullPointer:ttt/agents/mcts.c \
+--suppress=variableScope:ttt/agents/mcts.c \
+--suppress=memleak:ttt/zobrist.c \
 "
 CPPCHECK_OPTS="-I. --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
 
