@@ -76,11 +76,12 @@ valgrind: valgrind_existence
 
 .PHONY: cmp
 cmp: timsort.c testsort.c list_sort.c
-	@$(CC) $(CFLAGS) -o lll $^
-	@./lll
+	@$(CC) $(CFLAGS) -o compare_sorting $^
+	@./compare_sorting
 
 clean:
 	rm -f $(OBJS) $(deps) *~ qtest /tmp/qtest.*
+	rm -f compare_sorting
 	rm -rf .$(DUT_DIR)
 	rm -rf *.dSYM
 	(cd traces; rm -f *~)
