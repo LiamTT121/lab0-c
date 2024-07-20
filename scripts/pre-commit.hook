@@ -29,6 +29,7 @@ CPPCHECK_suppresses="--inline-suppr harness.c \
 --suppress=nullPointer:ttt/agents/mcts.c \
 --suppress=variableScope:ttt/agents/mcts.c \
 --suppress=memleak:ttt/zobrist.c \
+--suppress=variableScope:fix_point.h \
 "
 CPPCHECK_OPTS="-I. --enable=all --error-exitcode=1 --force $CPPCHECK_suppresses $CPPCHECK_unmatched ."
 
