@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../fix_point.h"
 #include "game.h"
 
 #define LOOKUP(table, i, j, else_value)                         \
@@ -62,13 +63,13 @@ char check_win(const char *t)
     return 'D';
 }
 
-double calculate_win_value(char win, char player)
+my_fix_point calculate_win_value(char win, char player)
 {
     if (win == player)
-        return 1.0;
+        return INT_TO_FIX_POINT(1);
     if (win == (player ^ 'O' ^ 'X'))
-        return 0.0;
-    return 0.5;
+        return 0;
+    return HALF_POINT;
 }
 
 int *available_moves(const char *table)
