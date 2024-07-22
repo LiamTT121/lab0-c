@@ -16,7 +16,7 @@ struct node {
     int move;
     char player;
     int n_visits;
-    my_fix_point score;
+    uint32_t score;
     struct node *parent;
     struct node *children[N_GRIDS];
 };
@@ -41,31 +41,28 @@ static void free_node(struct node *node)
     free(node);
 }
 
-static inline my_fix_point uct_score(int n_total,
-                                     int n_visits,
-                                     my_fix_point score)
+static inline uint32_t uct_score(int n_total, int n_visits, uint32_t score)
 {
     if (n_visits == 0)
         return FIX_POINT_MAX;
 
-    my_fix_point fix_total, fix_visits;
-    fix_total = INT_TO_FIX_POINT(n_total);
+    uint32_t fix_log_total, fix_visits;
+    fix_log_total = INT_TO_FIX_POINT(31 - __builtin_clz(n_total));
     fix_visits = INT_TO_FIX_POINT(n_visits);
-    return fix_div(score, fp_visits) +
+    return fix_div(score, fix_visits) +
            fix_mul(EXPLORATION_FACTOR,
-                   fix_sqrt(fix_div(log(fix_total), fix_visits)));
+                   fix_sqrt(fix_div(fix_log_total, fix_visits)));
 }
 
 static struct node *select_move(struct node *node)
 {
     struct node *best_node = NULL;
-    my_fix_point best_score = 0;
+    uint32_t best_score = 0;
     for (int i = 0; i < N_GRIDS; i++) {
         if (!node->children[i])
             continue;
-        my_fix_point score =
-            uct_score(node->n_visits, node->children[i]->n_visits,
-                      node->children[i]->score);
+        uint32_t score = uct_score(node->n_visits, node->children[i]->n_visits,
+                                   node->children[i]->score);
         if (!best_node || score > best_score) {
             best_score = score;
             best_node = node->children[i];
@@ -74,7 +71,7 @@ static struct node *select_move(struct node *node)
     return best_node;
 }
 
-static double simulate(const char *table, char player)
+static uint32_t simulate(const char *table, char player)
 {
     char win;
     char current_player = player;
@@ -96,10 +93,10 @@ static double simulate(const char *table, char player)
             return calculate_win_value(win, player);
         current_player ^= 'O' ^ 'X';
     }
-    return HALF_POINT;
+    return POINT_FIVE;
 }
 
-static void backpropagate(struct node *node, double score)
+static void backpropagate(struct node *node, uint32_t score)
 {
     while (node) {
         node->n_visits++;
@@ -131,13 +128,13 @@ int mcts(const char *table, char player)
         memcpy(temp_table, table, N_GRIDS);
         while (1) {
             if ((win = check_win(temp_table)) != ' ') {
-                my_fix_point score =
+                uint32_t score =
                     calculate_win_value(win, node->player ^ 'O' ^ 'X');
                 backpropagate(node, score);
                 break;
             }
             if (node->n_visits == 0) {
-                my_fix_point score = simulate(temp_table, node->player);
+                uint32_t score = simulate(temp_table, node->player);
                 backpropagate(node, score);
                 break;
             }

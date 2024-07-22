@@ -1,4 +1,5 @@
 PROG = ttt
+CC = gcc
 CFLAGS := -Wall -Wextra -std=c11
 CFLAGS += -I. -MMD
 LDFLAGS :=
@@ -37,7 +38,7 @@ $(RL): main.c agents/reinforcement_learning.c game.c
 $(TRAIN): $(TRAIN).c agents/reinforcement_learning.c game.c
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(MCTS): main.c agents/mcts.c game.c
+$(MCTS): main.c agents/mcts.c game.c ../fix_point.c
 	$(CC) -o $@ $^ $(MCTS_CFLAGS) $(MCTS_LDFLAGS)
 
 $(ELO): $(ELO).c agents/negamax.c agents/mcts.c agents/reinforcement_learning.c game.c mt19937-64.c zobrist.c

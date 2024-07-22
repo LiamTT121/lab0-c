@@ -63,13 +63,13 @@ char check_win(const char *t)
     return 'D';
 }
 
-my_fix_point calculate_win_value(char win, char player)
+uint32_t calculate_win_value(char win, char player)
 {
     if (win == player)
         return INT_TO_FIX_POINT(1);
     if (win == (player ^ 'O' ^ 'X'))
         return 0;
-    return HALF_POINT;
+    return POINT_FIVE;  // 0.5
 }
 
 int *available_moves(const char *table)
