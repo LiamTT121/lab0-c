@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "../fix_point.h"
 #include "game.h"
@@ -136,4 +137,10 @@ void draw_board(const char *t)
     for (int i = 0; i < BOARD_SIZE; i++)
         printf(" %2c", 'A' + i);
     printf("\n");
+
+    // print current time
+    const time_t curr_time = time(NULL);
+    const struct tm *tm = localtime(&curr_time);
+    printf("Current time: %02d:%02d:%02d\n", tm->tm_hour, tm->tm_min,
+           tm->tm_sec);
 }

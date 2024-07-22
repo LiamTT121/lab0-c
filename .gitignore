@@ -1,4 +1,6 @@
 qtest
+testing.c
+out.txt
 *.o
 *.o.d
 *.dSYM
