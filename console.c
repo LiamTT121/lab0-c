@@ -13,6 +13,7 @@
 
 #include "console.h"
 #include "report.h"
+#include "ttt/ttt.h"
 #include "web.h"
 
 /* Some global values */
@@ -414,6 +415,31 @@ static bool do_web(int argc, char *argv[])
     return true;
 }
 
+static bool do_ttt(int argc, char *argv[])
+{
+    bool is_cpu_vs_cpu = false;
+
+    if (argc > 1) {
+        if (argv[1][0] != '1' && argv[1][0] != '2') {
+            report(1,
+                   "Invalid mode %s.\n"
+                   "type 1 for mode 1: human v.s. cpu\n"
+                   "type 2 for mode 2:   cpu v.s. cpu",
+                   argv[1]);
+            return false;
+        }
+        if (argv[1][0] == '2')
+            is_cpu_vs_cpu = true;
+    }
+
+    if (is_cpu_vs_cpu) {
+        printf("Not implemented.\n");
+        return true;
+    }
+    start_ttt(is_cpu_vs_cpu);
+    return true;
+}
+
 /* Initialize interpreter */
 void init_cmd()
 {
@@ -431,6 +457,11 @@ void init_cmd()
     ADD_COMMAND(log, "Copy output to file", "file");
     ADD_COMMAND(time, "Time command execution", "cmd arg ...");
     ADD_COMMAND(web, "Read commands from builtin web server", "[port]");
+    ADD_COMMAND(ttt,
+                "Start Tic-Tac-Toe in mode [mode] (default mode: 1)\n"
+                "    mode 1: human v.s. cpu\n"
+                "    mode 2: cpu v.s. cpu",
+                "[mode]");
     add_cmd("#", do_comment_cmd, "Display comment", "...");
     add_param("simulation", &simulation, "Start/Stop simulation mode", NULL);
     add_param("verbose", &verblevel, "Verbosity level", NULL);

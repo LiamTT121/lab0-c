@@ -6,6 +6,8 @@ CFLAGS += -Wvla
 
 GIT_HOOKS := .git/hooks/applied
 DUT_DIR := dudect
+TTT_DIR := ttt
+AGENT_DIR := ttt/agents
 all: $(GIT_HOOKS) qtest
 
 tid := 0
@@ -40,7 +42,9 @@ $(GIT_HOOKS):
 OBJS := qtest.o report.o console.o harness.o queue.o \
         random.o dudect/constant.o dudect/fixture.o dudect/ttest.o \
         shannon_entropy.o \
-        linenoise.o web.o list_sort.o
+        linenoise.o web.o list_sort.o \
+        fix_point.o \
+        ttt/ttt.o ttt/game.o ttt/agents/mcts.o
 
 deps := $(OBJS:%.o=.%.o.d)
 
@@ -50,6 +54,8 @@ qtest: $(OBJS)
 
 %.o: %.c
 	@mkdir -p .$(DUT_DIR)
+	@mkdir -p .$(TTT_DIR)
+	@mkdir -p .$(AGENT_DIR)
 	$(VECHO) "  CC\t$@\n"
 	$(Q)$(CC) -o $@ $(CFLAGS) -c -MMD -MF .$@.d $<
 
@@ -83,6 +89,8 @@ clean:
 	rm -f $(OBJS) $(deps) *~ qtest /tmp/qtest.*
 	rm -f compare_sorting
 	rm -rf .$(DUT_DIR)
+	rm -rf .$(AGENT_DIR)
+	rm -rf .$(TTT_DIR)
 	rm -rf *.dSYM
 	(cd traces; rm -f *~)
 
