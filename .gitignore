@@ -9,6 +9,8 @@ out.txt
 core*
 .cmd_history
 *.swp
+*.png
+*.gp
 
 # ctags files
 TAGS
