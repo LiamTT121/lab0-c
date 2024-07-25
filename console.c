@@ -432,10 +432,6 @@ static bool do_ttt(int argc, char *argv[])
             is_cpu_vs_cpu = true;
     }
 
-    if (is_cpu_vs_cpu) {
-        printf("Not implemented.\n");
-        return true;
-    }
     start_ttt(is_cpu_vs_cpu);
     return true;
 }

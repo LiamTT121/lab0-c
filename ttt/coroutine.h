@@ -190,7 +190,7 @@ static void timer_init(void)
     sigaction(SIGALRM, &sa, NULL);
 }
 
-static void timer_create(unsigned int usecs)
+static void my_timer_create(unsigned int usecs)
 {
     ualarm(usecs, usecs);
 }
@@ -211,32 +211,6 @@ static void timer_wait(void)
 
     sigdelset(&mask, SIGALRM);
     sigsuspend(&mask);
-}
-
-static int cmp_u32(const void *a, const void *b, void *arg)
-{
-    uint32_t x = *(uint32_t *) a, y = *(uint32_t *) b;
-    uint32_t diff = x ^ y;
-    if (!diff)
-        return 0; /* *a == *b */
-    diff = diff | (diff >> 1);
-    diff |= diff >> 2;
-    diff |= diff >> 4;
-    diff |= diff >> 8;
-    diff |= diff >> 16;
-    diff ^= diff >> 1;
-    return (x & diff) ? 1 : -1;
-}
-
-static inline uint32_t random_shuffle(uint32_t x)
-{
-    /* by Chris Wellons, see: <https://nullprogram.com/blog/2018/07/31/> */
-    x ^= x >> 16;
-    x *= 0x7feb352dUL;
-    x ^= x >> 15;
-    x *= 0x846ca68bUL;
-    x ^= x >> 16;
-    return x;
 }
 
 #endif
