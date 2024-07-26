@@ -180,10 +180,12 @@ static void train(int iter)
 int main()
 {
     init_training();
+    printf("Training...");
     for (unsigned int i = 0; i < NUM_EPISODE; i++) {
         train(i);
     }
     store_state_value(agent, N_STATES);
     free(agent[0].state_value);
     free(agent[1].state_value);
+    printf("Complete!\n");
 }

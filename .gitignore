@@ -3,6 +3,7 @@ testing.c
 out.txt
 *.o
 *.o.d
+*.d
 *.dSYM
 .vscode
 .devcontainer
@@ -11,6 +12,7 @@ core*
 *.swp
 *.png
 *.gp
+*.bin
 
 # ctags files
 TAGS

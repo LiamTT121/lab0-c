@@ -14,12 +14,12 @@ typedef struct td_agent {
     float *state_value;
 } rl_agent_t;
 
-int table_to_hash(char *table);
+int table_to_hash(const char *table);
 char *hash_to_table(int hash);
 void load_model(rl_agent_t *agent,
                 unsigned int state_num,
                 const char *model_path);
-int get_action_exploit(char *table, rl_agent_t *agent);
-int play_rl(char *table, rl_agent_t *agent);
-void store_state_value(rl_agent_t *agent, unsigned int N_STATES);
+int get_action_exploit(char *table, const rl_agent_t *agent);
+int play_rl(char *table, const rl_agent_t *agent);
+void store_state_value(const rl_agent_t *agent, unsigned int N_STATES);
 void init_rl_agent(rl_agent_t *agent, unsigned int state_num, char player);

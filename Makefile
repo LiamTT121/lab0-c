@@ -44,7 +44,8 @@ OBJS := qtest.o report.o console.o harness.o queue.o \
         shannon_entropy.o \
         linenoise.o web.o list_sort.o \
         fix_point.o \
-        ttt/ttt.o ttt/game.o ttt/agents/mcts.o
+        ttt/ttt.o ttt/game.o ttt/zobrist.o ttt/mt19937-64.o ttt/agents/mcts.o \
+        ttt/agents/reinforcement_learning.o ttt/agents/negamax.o
 
 deps := $(OBJS:%.o=.%.o.d)
 
@@ -61,6 +62,10 @@ qtest: $(OBJS)
 
 check: qtest
 	./$< -v 3 -f traces/trace-eg.cmd
+
+.PHONY: train
+train:
+	(cd $(TTT_DIR) && make train && cd .. && ./ttt/train)
 
 test: qtest scripts/driver.py
 	scripts/driver.py -c
@@ -93,6 +98,7 @@ clean:
 	rm -rf .$(TTT_DIR)
 	rm -rf *.dSYM
 	(cd traces; rm -f *~)
+	(cd $(TTT_DIR) && make clean)
 
 distclean: clean
 	rm -f .cmd_history

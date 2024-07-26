@@ -136,11 +136,5 @@ void draw_board(const char *t)
     printf("    ");
     for (int i = 0; i < BOARD_SIZE; i++)
         printf(" %2c", 'A' + i);
-    printf("\n");
-
-    // print current time
-    const time_t curr_time = time(NULL);
-    const struct tm *tm = localtime(&curr_time);
-    printf("Current time: %02d:%02d:%02d\n", tm->tm_hour, tm->tm_min,
-           tm->tm_sec);
+    printf("\n\n");
 }

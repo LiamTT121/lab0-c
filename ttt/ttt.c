@@ -20,14 +20,34 @@
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
+#define MAX_ROUND 50
+
 static int move_record[N_GRIDS];
 static int move_count = 0;
+static bool show_board_flag = true;
+static bool during_battle_flag = true;
 
 static struct termios orig_termios;
 
 static void record_move(int move)
 {
     move_record[move_count++] = move;
+}
+
+static void print_time(void *dont_care)
+{
+    while (true) {
+        time_t curr_time = time(NULL);
+        const struct tm *tm = localtime(&curr_time);
+
+        if (!during_battle_flag)
+            return;
+        preempt_disable();
+        printf("\033[2K\033[A");
+        printf("Current time: %02d:%02d:%02d\n", tm->tm_hour, tm->tm_min,
+               tm->tm_sec);
+        preempt_enable();
+    }
 }
 
 static void print_moves(void)
@@ -39,7 +59,7 @@ static void print_moves(void)
         if (i < move_count - 1)
             printf(" -> ");
     }
-    printf("\n");
+    printf("\n\n");
 }
 
 static int get_input(char player)
@@ -101,36 +121,102 @@ static int get_input(char player)
     return GET_INDEX(y, x);
 }
 
-void cpu0(void *ptr)
+static void reset_game(char *table)
 {
-    task_printf("0 start\n");
-    int x;
-    for (int i = 0; i < 1000000; i++) {
-        x = i % 4243;
-        if (i % 100000 == 0)
-            task_printf("0: %02d%%\n", i / 10000);
-    }
-    task_printf("0 complete %d\n", x);
+    preempt_disable();
+    memset(table, ' ', N_GRIDS);
+    memset(move_record, 0, N_GRIDS * sizeof(int));
+    move_count = 0;
+    preempt_enable();
 }
 
-void cpu1(void *ptr)
+/* using rl */
+static void cpu_0(char *table, const rl_agent_t *agent)
 {
-    task_printf("1 start\n");
-    int x;
-    for (int i = 0; i < 1000000; i++) {
-        x = i % 1234;
-        if (i % 100000 == 0)
-            task_printf("1: %02d%%\n", i / 10000);
-    }
-    task_printf("1 complete %d\n", x);
+    int move = play_rl(table, agent);
+    record_move(move);
 }
 
-void disable_raw_mode(void)
+/* using negamax */
+static void cpu_1(char *table, char symbol)
+{
+    int move = negamax_predict(table, symbol).move;
+    table[move] = symbol;
+    record_move(move);
+}
+
+static void game_process(void *dont_care)
+{
+    char table[N_GRIDS];
+    char symbol_0 = 'X';
+    char symbol_1 = 'O';
+    char win;
+
+    srand(time(NULL));
+
+    /* prepare for reinforcement learning (cpu 0) */
+    rl_agent_t rl_agent;
+    unsigned int state_num = 1;
+    CALC_STATE_NUM(state_num);
+    init_rl_agent(&rl_agent, state_num, symbol_0);
+    load_model(&rl_agent, state_num, MODEL_NAME);
+
+    /* prepare for negamax (cpu1) */
+    negamax_init();
+
+    for (int round = 0; round < MAX_ROUND && during_battle_flag; round++) {
+        reset_game(table);
+        task_printf("--- New Game ---\n");
+
+        while (during_battle_flag) {
+            if (show_board_flag) {
+                preempt_disable();
+                draw_board(table);
+                preempt_enable();
+            }
+
+            win = check_win(table);
+            if (win != ' ')
+                break;
+            cpu_0(table, &rl_agent);
+
+            win = check_win(table);
+            if (win != ' ')
+                break;
+            cpu_1(table, symbol_1);
+        }
+
+        if (!during_battle_flag)
+            return;
+
+        if (show_board_flag) {
+            preempt_disable();
+            draw_board(table);
+            preempt_enable();
+        }
+
+        if (win == 'D')
+            task_printf("Game %d: It is a draw!\n\n", round + 1);
+        else if (win == symbol_0)
+            task_printf("Game %d: CPU 0 won!\n\n", round + 1);
+        else
+            task_printf("Game %d: CPU 1 won!\n\n", round + 1);
+
+        preempt_disable();
+        print_moves();
+        preempt_enable();
+    }
+    preempt_disable();
+    printf("Game is Over. Press Ctrl+Q to leave.\n\n");
+    preempt_enable();
+}
+
+static void disable_raw_mode(void)
 {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
-void enable_raw_mode(void)
+static void enable_raw_mode(void)
 {
     struct termios raw;
 
@@ -145,14 +231,14 @@ void enable_raw_mode(void)
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-void read_raw_data(void *ptr)
+static void read_raw_data(void *dont_care)
 {
     sigset_t sig_alarm;
-    char c;
+    char c = '\0';
 
     sigemptyset(&sig_alarm);
     sigaddset(&sig_alarm, SIGALRM);
-    while (1) {
+    while (during_battle_flag) {
         sigprocmask(SIG_BLOCK, &sig_alarm, NULL);
         int byte_read = read(STDIN_FILENO, &c, 1);
         sigprocmask(SIG_UNBLOCK, &sig_alarm, NULL);
@@ -167,28 +253,37 @@ void read_raw_data(void *ptr)
          * need to reset c to prevent repeating outcomes
          */
         if (c == CTRL_KEY('q')) {
-            task_printf("press Ctrl-Q\n");
-            c = '\0';
-        } else if (c == CTRL_KEY('p')) {
-            task_printf("press Ctrl-P\n");
-            c = '\0';
-        } else if (c == 'q')
+            preempt_disable();
+            during_battle_flag = false;
+            printf("Quit tic-tac-toe\n");
+            preempt_enable();
             return;
+        } else if (c == CTRL_KEY('p')) {
+            preempt_disable();
+            show_board_flag = !show_board_flag;
+            preempt_enable();
+            c = '\0';
+        }
     }
 }
 
-void cpu_battle()
+static void cpu_battle()
 {
     enable_raw_mode();
     timer_init();
     task_init();
 
-    task_add(cpu0, "0");
-    task_add(cpu1, "1");
-    task_add(read_raw_data, "2");
+    task_add(game_process, NULL);
+    task_add(read_raw_data, NULL);
+    task_add(print_time, NULL);
 
     preempt_disable();
     my_timer_create(10000); /* 10000 microseconds == 10 milliseconds */
+
+    show_board_flag = true;
+    during_battle_flag = true;
+
+    /* coroutine */
     while (!list_empty(&task_main.list) || !list_empty(&task_reap)) {
         preempt_enable();
         timer_wait();
