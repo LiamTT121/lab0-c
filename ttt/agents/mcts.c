@@ -7,6 +7,7 @@
 
 #include "../../fix_point.h"
 #include "../game.h"
+#include "../wyhash.h"
 #include "mcts.h"
 #include "util.h"
 
@@ -86,7 +87,7 @@ static uint32_t simulate(const char *table, char player)
         int n_moves = 0;
         while (n_moves < N_GRIDS && moves[n_moves] != -1)
             ++n_moves;
-        int move = moves[rand() % n_moves];
+        int move = moves[lemire_rand(n_moves)];
         free(moves);
         temp_table[move] = current_player;
         if ((win = check_win(temp_table)) != ' ')

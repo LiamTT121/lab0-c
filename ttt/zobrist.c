@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "mt19937-64.h"
+#include "wyhash.h"
 #include "zobrist.h"
 
 uint64_t zobrist_table[N_GRIDS][2];
@@ -14,8 +15,8 @@ void zobrist_init(void)
 {
     int i;
     for (i = 0; i < N_GRIDS; i++) {
-        zobrist_table[i][0] = mt19937_rand();
-        zobrist_table[i][1] = mt19937_rand();
+        zobrist_table[i][0] = wyhash64();
+        zobrist_table[i][1] = wyhash64();
     }
     hash_table = malloc(sizeof(struct hlist_head) * HASH_TABLE_SIZE);
     assert(hash_table);

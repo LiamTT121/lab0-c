@@ -44,8 +44,8 @@ OBJS := qtest.o report.o console.o harness.o queue.o \
         shannon_entropy.o \
         linenoise.o web.o list_sort.o \
         fix_point.o \
-        ttt/ttt.o ttt/game.o ttt/zobrist.o ttt/mt19937-64.o ttt/agents/mcts.o \
-        ttt/agents/reinforcement_learning.o ttt/agents/negamax.o
+        ttt/ttt.o ttt/agents/mcts.o ttt/game.o ttt/zobrist.o ttt/mt19937-64.o \
+        ttt/agents/reinforcement_learning.o ttt/agents/negamax.o ttt/wyhash.o
 
 deps := $(OBJS:%.o=.%.o.d)
 

@@ -17,6 +17,7 @@
 #include "coroutine.h"
 #include "game.h"
 #include "ttt.h"
+#include "wyhash.h"
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -151,8 +152,6 @@ static void game_process(void *dont_care)
     char symbol_0 = 'X';
     char symbol_1 = 'O';
     char win;
-
-    srand(time(NULL));
 
     /* prepare for reinforcement learning (cpu 0) */
     rl_agent_t rl_agent;
@@ -301,7 +300,8 @@ void start_ttt(const bool is_cpu_vs_cpu)
     char ai = 'O';
     int move;
 
-    srand(time(NULL));
+    wyhash64_seed(((uint64_t) time(NULL) << 32) | (getpid() ^ getppid()));
+
     memset(table, ' ', N_GRIDS);
 
     if (is_cpu_vs_cpu) {
