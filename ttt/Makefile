@@ -11,4 +11,4 @@ $(TRAIN): $(TRAIN).c agents/reinforcement_learning.c game.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	-$(RM) $(deps) $(TRAIN)
+	-$(RM) $(deps) $(TRAIN) *.o
